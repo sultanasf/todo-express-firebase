@@ -1,47 +1,39 @@
 const express = require('express')
-const firebase = require('firebase-admin')
+const cors = require('cors')
+const todo = require('./models/todo')
+const db = require('./config/firebase-connect')
+const { async } = require('@firebase/util')
+const FirebaseFirestore = require('@google-cloud/firestore')
 const app = express()
 
 app.set('view engine', 'ejs')
 app.use(express.urlencoded({ extended: true }))
-app.use(express.static('public'))
 app.use(express.json())
-
-const serviceAccount = require('./cert/user.json')
-
-firebase.initializeApp({
-    credential: firebase.credential.cert(serviceAccount),
-    databaseURL: 'https://express-firebase-a4bc1-default-rtdb.asia-southeast1.firebasedatabase.app/'
-})
+app.use(cors())
 
 app.get('/', (req, res) => {
-    res.render('index', { name: 'Sultan' })
+    res.render('index')
 })
 
-app.get("/todos", (req, res) => {
-    firebase
-        .database()
-        .ref("/todos")
-        .once("value")
-        .then(snapshot => {
-            const todos = snapshot.val();
-            res.send(todos);
-        })
-});
+app.post('/todo', async (req, res) => {
+    const data = req.body.todo
+    await todo.add({
+        todo: data
+    })
+    console.log(`Added list`)
+    res.redirect('/')
+})
 
-app.post("/todos", (req, res) => {
-    const todo = req.body.todo;
-
-    firebase
-        .database()
-        .ref("/todos")
-        .push(todo)
-        .then(() => {
-            console.log({ message: "Todo added successfully." });
-            res.redirect('/')
-        });
-});
+app.get('/list', async (req, res) => {
+    const citiesRef = todo;
+    const snapshot = await citiesRef.get();
+    const arr = []
+    snapshot.forEach(doc => {
+        arr.push(doc.id, doc.data());
+    });
+    res.send(arr)
+})
 
 app.listen(3000, () => {
-    console.log('app running on http://localhost:3000')
+    console.log('Server running on port 3000')
 })
